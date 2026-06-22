@@ -4,7 +4,8 @@
 
 ## Quick links
 
-- [[Dashboard]] — daily todos and status (start here)
+- [[PROGRESS]] — **session handoff for new chats (read first)**
+- [[Dashboard]] — daily todos and status
 - [[START HERE — Obsidian setup]] — if Obsidian looks empty or wrong
 - [[Local PostgreSQL setup]] — connect without Docker
 - [[Headroom + Cursor setup]] — LLM context compression in Cursor

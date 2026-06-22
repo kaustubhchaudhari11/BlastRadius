@@ -4,9 +4,9 @@
 
 ## Today
 
-- [ ] App runs: `.\mvnw.cmd spring-boot:run`
-- [ ] `/health` returns alive
-- [ ] Postgres connected — see [[Local PostgreSQL setup]] (local PG 17, no Docker)
+- [ ] Create `application-local.properties` (gitignored) with PG18 password
+- [ ] Run `scripts/setup-postgres.ps1` → DB `blastradius`
+- [ ] App boots + Flyway creates 5 tables
 
 ## Project status
 
