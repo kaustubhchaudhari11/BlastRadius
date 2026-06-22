@@ -4,6 +4,10 @@
 
 ## Quick links
 
+- [[Dashboard]] — daily todos and status (start here)
+- [[START HERE — Obsidian setup]] — if Obsidian looks empty or wrong
+- [[Local PostgreSQL setup]] — connect without Docker
+- [[Headroom + Cursor setup]] — LLM context compression in Cursor
 - [[Roadmap]] — all phases, dependencies, timeline
 - [[Architecture]] — system diagram and the `EcosystemAdapter` seam
 - [[Data Model]] — PostgreSQL tables and relationships
@@ -12,17 +16,17 @@
 
 ## Status
 
-| Phase | Status | Branch |
-|-------|--------|--------|
-| 0 — Skeleton | ✅ Done | `main` |
-| 1 — Persistence | 🔄 In progress | `feat/phase1-persistence` |
-| 2 — Maven ingestion | ⏳ | `feat/phase2-maven-ingestion` |
-| 3 — Advisories | ⏳ | `feat/phase3-advisories` |
-| 4 — Usage detection | ⏳ | `feat/phase4-usage-maven` |
-| 5 — Agents | ⏳ | `feat/phase5-agents` |
-| 6 — Dashboard | ⏳ | `feat/phase6-frontend` |
-| 7 — Deploy | ⏳ | `feat/phase7-deploy` |
-| 8 — Python adapter | ⏳ | `feat/phase8-python-adapter` |
+| Phase               | Status         | Branch                        |
+| ------------------- | -------------- | ----------------------------- |
+| 0 — Skeleton        | ✅ Done         | `main`                        |
+| 1 — Persistence     | 🔄 In progress | `feat/phase1-persistence`     |
+| 2 — Maven ingestion | ⏳              | `feat/phase2-maven-ingestion` |
+| 3 — Advisories      | ⏳              | `feat/phase3-advisories`      |
+| 4 — Usage detection | ⏳              | `feat/phase4-usage-maven`     |
+| 5 — Agents          | ⏳              | `feat/phase5-agents`          |
+| 6 — Dashboard       | ⏳              | `feat/phase6-frontend`        |
+| 7 — Deploy          | ⏳              | `feat/phase7-deploy`          |
+| 8 — Python adapter  | ⏳              | `feat/phase8-python-adapter`  |
 
 ## Repo
 
@@ -33,3 +37,6 @@
 ## One-liner (interview)
 
 Import-level reachability triage + agentic migration layer, built behind an ecosystem-adapter abstraction so a new language is ~a day of work.
+
+
+

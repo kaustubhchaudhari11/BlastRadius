@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "headroom": {
+      "command": "C:\\Users\\kaust\\AppData\\Local\\Programs\\Python\\Python312\\Scripts\\headroom.exe",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
