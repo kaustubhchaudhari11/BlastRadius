@@ -1,4 +1,4 @@
-# Blast Radius
+# BlastRadius
 
 Dependency-triage tool for Java and Python projects: filters advisory noise and surfaces which CVEs/version changes actually touch code you call — with migration drafts for your call sites.
 
