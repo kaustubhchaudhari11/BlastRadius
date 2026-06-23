@@ -1,0 +1,6 @@
+# Copy to application-local.properties (gitignored) and set your local password:
+#   copy application-local.properties.example application-local.properties
+#
+# spring.datasource.password=YOUR_POSTGRES_PASSWORD
+
+spring.datasource.password=CHANGE_ME

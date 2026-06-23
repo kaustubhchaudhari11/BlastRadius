@@ -1,0 +1,18 @@
+---
+description: Blast Radius project context — read PROGRESS.md at session start
+alwaysApply: true
+---
+
+# Blast Radius context
+
+At the start of every chat on this repo:
+
+1. Read `docs/PROGRESS.md` for current phase, branch, blockers, and next steps.
+2. Read `docs/Roadmap.md` for phase dependencies.
+3. Never commit passwords — use `application-local.properties` (gitignored) or `SPRING_DATASOURCE_PASSWORD`.
+4. Commit style: conventional commits per micro-step (`feat:`, `chore:`, `docs:`).
+5. One branch per phase: `feat/phaseN-short-name` from `main`.
+
+Stack: Spring Boot 3.4, Java 21, Maven, PostgreSQL 18, Flyway, Lombok. Package root: `com.blastradius`.
+
+Current focus: finish Phase 1 checkpoint (Postgres + Flyway boot), merge PR, then Phase 2 `EcosystemAdapter` + Maven ingestion.
