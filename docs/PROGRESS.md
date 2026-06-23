@@ -1,6 +1,6 @@
 # Blast Radius — Session Handoff (read this first in new chats)
 
-> **Last updated:** 2026-06-22 · **Branch:** `feat/phase1-persistence` · **Phase:** 1 (checkpoint pending)
+> **Last updated:** 2026-06-23 · **Branch:** `feat/phase1-persistence` · **Phase:** 1 ✅ checkpoint PASSED (app boots, 5 tables created, /health live)
 
 ## One-liner
 Dependency triage: filter CVE/advisory noise → show what affects **your** code → draft migrations. Java/Maven first, Python later. Spring Boot 3 + Postgres + Flyway + React (later).
@@ -13,15 +13,15 @@ Dependency triage: filter CVE/advisory noise → show what affects **your** code
 - Obsidian vault: `docs/` · GitHub: https://github.com/kaustubhchaudhari11/BlastRadius
 - Pushed: `1db9bf5` on `feat/phase1-persistence`
 
-## Blocked / YOU do now 🔴
-1. Create DB (once): `$env:PGPASSWORD='YOUR_PW'; .\scripts\setup-postgres.ps1`
-2. Local secrets (gitignored):
-   ```powershell
-   copy src\main\resources\application-local.properties.example src\main\resources\application-local.properties
-   # edit → spring.datasource.password=YOUR_PW
-   ```
-3. Run app → Flyway creates 5 tables
-4. Merge PR → `main` → start Phase 2
+## YOU do now 🔴
+1. Merge PR `feat/phase1-persistence` → `main` (https://github.com/kaustubhchaudhari11/BlastRadius)
+2. `git checkout main && git pull` → start Phase 2 branch
+3. Note: port 8080 was blocked by `PEMHTTPD-x64` (Apache from PG install) — stop that service if it returns
+
+## Phase 1 setup (DONE — reference)
+- DB created: `$env:PGPASSWORD='...'; .\scripts\setup-postgres.ps1`
+- Secret in `application-local.properties` (gitignored)
+- App boots, Flyway applied V1, 5 tables + flyway_schema_history exist
 
 ## Run commands
 ```powershell
@@ -67,3 +67,4 @@ Branch: `feat/phase2-maven-ingestion`
 
 ## Session log
 - 2026-06-22: PG18 installed; secure config pushed; awaiting first successful Flyway boot + P1 merge
+- 2026-06-23: Phase 1 checkpoint PASSED — app live, Flyway created 5 tables, /health OK. Next: merge PR → Phase 2.
