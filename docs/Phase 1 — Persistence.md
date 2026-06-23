@@ -33,9 +33,9 @@ One Spring Data JPA repository per entity.
 
 ## Checkpoint
 
-- [ ] App boots without error
-- [ ] Flyway creates 5 tables
-- [ ] Tables visible in IntelliJ Database tool (localhost:5432, blastradius/postgres)
+- [x] App boots without error
+- [x] Flyway creates 5 tables
+- [x] Tables visible in IntelliJ Database tool (localhost:5432, blastradius/postgres)
 
 ## IntelliJ DB connection
 
