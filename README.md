@@ -5,16 +5,21 @@ Dependency-triage tool for Java and Python projects: filters advisory noise and 
 ## Prerequisites
 
 - JDK 21 (Temurin)
-- Docker Desktop (for PostgreSQL)
+- PostgreSQL 16+ (local install or Docker)
 - Maven (wrapper included)
 
 ## Run locally
 
 ```powershell
-# Start PostgreSQL (requires Docker Desktop running)
-docker run --name br-pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=blastradius -p 5432:5432 -d postgres:16
+# 1. Create the database (one time)
+$env:PGPASSWORD = "your_postgres_password"
+.\scripts\setup-postgres.ps1
 
-# Run the app
+# 2. Provide the DB password (gitignored local file)
+copy src\main\resources\application-local.properties.example src\main\resources\application-local.properties
+# then edit it: spring.datasource.password=your_postgres_password
+
+# 3. Run the app
 .\mvnw.cmd spring-boot:run
 ```
 
@@ -27,7 +32,7 @@ Project roadmap, architecture, and phase checklists live in [`docs/`](docs/). Op
 ## Stack
 
 - Spring Boot 3.x, Java 21, Maven
-- PostgreSQL 16, Flyway, Spring Data JPA
+- PostgreSQL, Flyway, Spring Data JPA
 - React + Vite (Phase 6)
 
 ## License
