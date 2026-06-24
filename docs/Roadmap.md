@@ -37,18 +37,18 @@ P5 is the **first convergence** — needs both advisories AND usage sites.
 
 ## All phases (summary)
 
-| Phase | Name | Type | Needs | Enables | Tag |
-|-------|------|------|-------|---------|-----|
-| **0** | Spring Boot skeleton + `/health` | 🔧 | JDK 21 | Everything | — |
-| **1** | PostgreSQL + JPA + Flyway + entities | 🔧 | P0 | All ingestion/analysis | — |
-| **2** | `EcosystemAdapter` + Maven `parseDependencies` | 🧠🔧 | P1 | P3, P4, P8 | — |
-| **3** | OSV advisory ingestion (Maven + PyPI) | 🧠🔧 | P2 | P5 | — |
-| **4** | Maven `scanUsage` (import/symbol) | 🧠 | P2 | P5 | — |
-| **5** | Triage → Migration → Eval agents | 🧠 | P3 + P4 | P6 | — |
-| **6** | REST API + React dashboard | 🔧 | P5 | P7 | — |
-| **7** | Telemetry + Railway/Vercel deploy | 🔧 | P6 | P8 | **v0.1.0** |
-| **8** | `PythonAdapter` (pypi) | 🧠 | P7 | Two-lang demo | **v0.2.0** |
-| **9** | Stretch: GitHub clone, Kafka, AST | — | P8 | — | — |
+| Phase | Name                                           | Type | Needs   | Enables                | Tag        |
+| ----- | ---------------------------------------------- | ---- | ------- | ---------------------- | ---------- |
+| **0** | Spring Boot skeleton + `/health`               | 🔧   | JDK 21  | Everything             | —          |
+| **1** | PostgreSQL + JPA + Flyway + entities           | 🔧   | P0      | All ingestion/analysis | —          |
+| **2** | `EcosystemAdapter` + Maven `parseDependencies` | 🧠🔧 | P1      | P3, P4, P8             | —          |
+| **3** | OSV advisory ingestion (Maven + PyPI)          | 🧠🔧 | P2      | P5                     | —          |
+| **4** | Maven `scanUsage` (import/symbol)              | 🧠   | P2      | P5                     | —          |
+| **5** | Triage → Migration → Eval agents               | 🧠   | P3 + P4 | P6                     | —          |
+| **6** | REST API + React dashboard                     | 🔧   | P5      | P7                     | —          |
+| **7** | Telemetry + Railway/Vercel deploy              | 🔧   | P6      | P8                     | **v0.1.0** |
+| **8** | `PythonAdapter` (pypi)                         | 🧠   | P7      | Two-lang demo          | **v0.2.0** |
+| **9** | Stretch: GitHub clone, Kafka, AST              | —    | P8      | —                      | —          |
 
 🧠 = substance (review every line) · 🔧 = boilerplate (Cursor can drive)
 
