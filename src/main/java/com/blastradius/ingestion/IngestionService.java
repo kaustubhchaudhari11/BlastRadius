@@ -33,6 +33,12 @@ public class IngestionService {
 
 	@Transactional
 	public Project ingestProject(String name, String sourcePath, String repoUrl) {
+		if (name == null || name.isBlank()) {
+			throw new IngestionException("Project name must not be blank");
+		}
+		if (sourcePath == null || sourcePath.isBlank()) {
+			throw new IngestionException("Source path must not be blank");
+		}
 		Path repoRoot = Path.of(sourcePath);
 		if (!Files.isDirectory(repoRoot)) {
 			throw new IngestionException("Source path is not a directory: " + sourcePath);
