@@ -18,9 +18,15 @@ import org.springframework.stereotype.Component;
 /**
  * Maven/Java implementation of the ecosystem seam.
  *
- * <p>Parses the raw {@code <dependencies>} block of a pom.xml. Versions that are
- * inherited from a parent or managed by a BOM may be absent at this level; for the
- * MVP we record {@code "unspecified"} rather than resolving the full effective model.
+ * <p>Parses the {@code <dependencies>} block of a pom.xml and resolves each version via
+ * {@link MavenVersionResolver}: literal versions, {@code ${property}} placeholders, and
+ * {@code <dependencyManagement>} entries (including those inherited from on-disk parent
+ * POMs). A concrete version matters because P3 filters advisories by whether the current
+ * version is in the vulnerable range.
+ *
+ * <p>Boundary: versions that live only in a <strong>remote</strong> BOM (e.g.
+ * {@code spring-boot-starter-parent}) are not downloaded and are recorded as
+ * {@code "unspecified"} for the consumer to handle explicitly.
  */
 @Component
 public class MavenAdapter implements EcosystemAdapter {
@@ -54,11 +60,11 @@ public class MavenAdapter implements EcosystemAdapter {
 			throw new IngestionException("Failed to parse pom.xml at " + pom, e);
 		}
 
+		MavenVersionResolver resolver = new MavenVersionResolver(model, repoRoot);
 		List<ParsedDependency> result = new ArrayList<>();
 		for (org.apache.maven.model.Dependency d : model.getDependencies()) {
-			String version = (d.getVersion() == null || d.getVersion().isBlank())
-					? UNSPECIFIED_VERSION
-					: d.getVersion();
+			String version = resolver.resolve(d.getVersion(), d.getGroupId(), d.getArtifactId())
+					.orElse(UNSPECIFIED_VERSION);
 			result.add(new ParsedDependency(ECOSYSTEM, d.getGroupId(), d.getArtifactId(), version));
 		}
 		log.info("Parsed {} maven dependencies from {}", result.size(), pom);
