@@ -39,10 +39,10 @@ P5 is the **first convergence** — needs both advisories AND usage sites.
 
 | Phase | Name | Type | Needs | Enables | Tag |
 |-------|------|------|-------|---------|-----|
-| **0** | Spring Boot skeleton + `/health` | 🔧 | JDK 21 | Everything | — |
-| **1** | PostgreSQL + JPA + Flyway + entities | 🔧 | P0 | All ingestion/analysis | — |
-| **2** | `EcosystemAdapter` + Maven `parseDependencies` | 🧠🔧 | P1 | P3, P4, P8 | — |
-| **3** | OSV advisory ingestion (Maven + PyPI) | 🧠🔧 | P2 | P5 | — |
+| **0** | Spring Boot skeleton + `/health` | 🔧 | JDK 21 | Everything | ✅ |
+| **1** | PostgreSQL + JPA + Flyway + entities | 🔧 | P0 | All ingestion/analysis | ✅ |
+| **2** | `EcosystemAdapter` + Maven `parseDependencies` + **P2.5 version resolution** | 🧠🔧 | P1 | P3, P4, P8 | ✅ |
+| **3** | OSV advisory ingestion (Maven + PyPI) | 🧠🔧 | P2 | P5 | ◀ next |
 | **4** | Maven `scanUsage` (import/symbol) | 🧠 | P2 | P5 | — |
 | **5** | Triage → Migration → Eval agents | 🧠 | P3 + P4 | P6 | — |
 | **6** | REST API + React dashboard | 🔧 | P5 | P7 | — |
@@ -65,14 +65,15 @@ P5 is the **first convergence** — needs both advisories AND usage sites.
 
 ---
 
-## Micro-steps checklist (Phase 1 — current)
+## Micro-steps checklist (Phase 3 — next)
 
-- [ ] 1.1 Postgres Docker command in README
-- [ ] 1.2 JPA + Postgres + Flyway deps + datasource config
-- [ ] 1.3 Five entities under `com.blastradius.model`
-- [ ] 1.4 JPA repository per entity
-- [ ] 1.5 Flyway `V1__init.sql`
-- [ ] Checkpoint: app boots, tables visible in IntelliJ DB tool
+- [ ] 3.1 `AdvisoryClient` → OSV.dev (`/v1/querybatch`) from distinct `(ecosystem, pkg, version)`
+- [ ] 3.2 Map OSV JSON → `Advisory` entity (dedupe on `external_id`)
+- [ ] 3.3 `AdvisoryService.refreshForProject(projectId)` upsert
+- [ ] 3.4 Version-range check (`current_version` ∈ OSV affected range; `"unspecified"` → flag)
+- [ ] 3.5 `POST /api/projects/{id}/advisories/refresh`
+- [ ] 3.6 Unit test: OSV fixture → advisories + range true/false
+- [ ] Checkpoint: refresh real project → `advisory` rows land, known CVE matches by range
 - [ ] Push branch → PR → merge
 
-See [[Phase 1 — Persistence]] for details.
+> ✅ Phases 0–2 complete (incl. P2.5 version resolution). See [[PROGRESS]] for the live handoff and the Phase 2 → Phase 3 contract.
