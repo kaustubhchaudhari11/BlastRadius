@@ -4,35 +4,35 @@
 
 ## Today
 
-- [ ] Create `application-local.properties` (gitignored) with PG18 password
-- [ ] Run `scripts/setup-postgres.ps1` → DB `blastradius`
-- [ ] App boots + Flyway creates 5 tables
+- [ ] Merge Phase 2 PR → `main` (compare: `main...feat/phase2-maven-ingestion`)
+- [ ] `git checkout main && git pull` → cut `feat/phase3-advisories`
+- [ ] Kick off [[Phase 3 — Advisories]] step 3.1 (`AdvisoryClient` → OSV)
 
 ## Project status
 
 | Phase | Status | Notes |
 |-------|--------|-------|
 | [[Roadmap#Phase 0 — Skeleton\|0 Skeleton]] | ✅ Done | `/health` works |
-| [[Phase 1 — Persistence\|1 Persistence]] | 🔄 Active | Needs Postgres to boot |
-| 2 Maven ingestion | ⏳ | After P1 merges |
-| 3 Advisories | ⏳ | After P2 |
-| 4 Usage scan | ⏳ | After P2 |
+| [[Phase 1 — Persistence\|1 Persistence]] | ✅ Done | merged (PR #2) |
+| [[Phase 2 — Ingestion\|2 Maven ingestion]] | ✅ Done | ready to merge; 14/14 tests |
+| [[Phase 3 — Advisories\|3 Advisories]] | 🔜 Next | OSV ingestion + range filter |
+| 4 Usage scan | ⏳ | After P2 (parallel with P3) |
 | 5 Agents | ⏳ | After P3 + P4 |
 | 6 Dashboard | ⏳ | After P5 |
 | 7 Deploy | ⏳ | After P6 |
 | 8 Python | ⏳ | After v0.1.0 |
 
-## Phase 1 checklist
+## Phase 3 checklist
 
-See [[Phase 1 — Persistence]] for details.
+See [[Phase 3 — Advisories]] for the full plan.
 
-- [x] JPA + Flyway deps in pom.xml
-- [x] 5 entities + repositories
-- [x] Flyway V1 migration
-- [ ] Postgres running (Docker **or** local install)
-- [ ] App boots against Postgres
-- [ ] Tables visible in IntelliJ DB tool
-- [ ] PR merged to `main`
+- [ ] 3.1 `AdvisoryClient` → OSV `/v1/querybatch`
+- [ ] 3.2 Map OSV JSON → `Advisory` (dedupe on `external_id`)
+- [ ] 3.3 `AdvisoryService.refreshForProject()` upsert
+- [ ] 3.4 Version-range check (`"unspecified"` → flag)
+- [ ] 3.5 `POST /api/projects/{id}/advisories/refresh`
+- [ ] 3.6 Unit tests (OSV fixture + range cases)
+- [ ] Checkpoint: real project → advisories land, known CVE matches
 
 ## Quick links
 
@@ -46,4 +46,5 @@ See [[Phase 1 — Persistence]] for details.
 
 <!-- Add a line each time you work on the project -->
 
-- _Example: 2026-06-17 — Phase 1 code done, need Postgres checkpoint_
+- 2026-06-24 — Phase 2 code complete (2.1–2.6 + P2.5 version resolution + POST→DB IT), 14/14 tests, pushed
+- 2026-07-02 — Resumed after a week; Phase 2 confirmed ready to merge; Obsidian updated for P2 done + P3 plan

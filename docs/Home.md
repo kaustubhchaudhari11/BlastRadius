@@ -13,16 +13,16 @@
 - [[Architecture]] — system diagram and the `EcosystemAdapter` seam
 - [[Data Model]] — PostgreSQL tables and relationships
 - [[Git Workflow]] — branches, commits, PRs
-- [[Phase 1 — Persistence]] — current work
+- [[Phase 1 — Persistence]] · [[Phase 2 — Ingestion]] · [[Phase 3 — Advisories]] ← next
 
 ## Status
 
 | Phase               | Status         | Branch                        |
 | ------------------- | -------------- | ----------------------------- |
 | 0 — Skeleton        | ✅ Done         | `main`                        |
-| 1 — Persistence     | 🔄 In progress | `feat/phase1-persistence`     |
-| 2 — Maven ingestion | ⏳              | `feat/phase2-maven-ingestion` |
-| 3 — Advisories      | ⏳              | `feat/phase3-advisories`      |
+| 1 — Persistence     | ✅ Done         | merged (PR #2)                |
+| 2 — Maven ingestion | ✅ Done         | `feat/phase2-maven-ingestion` (ready to merge) |
+| 3 — Advisories      | 🔜 Next         | `feat/phase3-advisories`      |
 | 4 — Usage detection | ⏳              | `feat/phase4-usage-maven`     |
 | 5 — Agents          | ⏳              | `feat/phase5-agents`          |
 | 6 — Dashboard       | ⏳              | `feat/phase6-frontend`        |
