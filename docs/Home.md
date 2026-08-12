@@ -5,6 +5,7 @@
 ## Quick links
 
 - [[PROGRESS]] — **session handoff for new chats (read first)**
+- [[Task Dependency Map]] — 🗺️ **what blocks what** across all remaining phases
 - [[Dashboard]] — daily todos and status
 - [[START HERE — Obsidian setup]] — if Obsidian looks empty or wrong
 - [[Local PostgreSQL setup]] — connect without Docker
@@ -21,9 +22,9 @@
 | ------------------- | -------------- | ----------------------------- |
 | 0 — Skeleton        | ✅ Done         | `main`                        |
 | 1 — Persistence     | ✅ Done         | merged (PR #2)                |
-| 2 — Maven ingestion | ✅ Done         | `feat/phase2-maven-ingestion` (ready to merge) |
+| 2 — Maven ingestion | ✅ Done         | merged (PR #3)                |
 | 3 — Advisories      | 🔜 Next         | `feat/phase3-advisories`      |
-| 4 — Usage detection | ⏳              | `feat/phase4-usage-maven`     |
+| 4 — Usage detection | ⏳ Unblocked    | `feat/phase4-usage-maven`     |
 | 5 — Agents          | ⏳              | `feat/phase5-agents`          |
 | 6 — Dashboard       | ⏳              | `feat/phase6-frontend`        |
 | 7 — Deploy          | ⏳              | `feat/phase7-deploy`          |

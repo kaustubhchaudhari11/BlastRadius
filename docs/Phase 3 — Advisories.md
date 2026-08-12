@@ -34,11 +34,14 @@ flowchart TD
 
 ## Task breakdown
 
+> 🗺️ Blocking order, cross-functional contracts, and deferred debt: **[[Task Dependency Map]]**
+
 > [!todo] Micro-steps (one commit each)
+> - [ ] **3.0** HTTP client bean (`RestClient`) + timeouts + OSV base URL 🔒 *blocks 3.1*
 > - [ ] **3.1** `AdvisoryClient` → OSV `POST /v1/querybatch` from distinct `(ecosystem, pkg, version)`
 > - [ ] **3.2** Map OSV JSON → `Advisory` entity (`external_id` UNIQUE = OSV id; ranges → `affected_versions`; `severity`)
 > - [ ] **3.3** `AdvisoryService.refreshForProject(projectId)` — query + **upsert / dedupe** on `external_id`
-> - [ ] **3.4** Version-range check helper — is `current_version` inside an OSV affected range? (`"unspecified"` → skip + flag)
+> - [ ] **3.4** ⚡🔗 Version-range comparator — tri-state `AFFECTED` / `NOT_AFFECTED` / `UNKNOWN` (`"unspecified"` → `UNKNOWN`). **Start in parallel on day one — longest pole, and Phase 5 consumes it**
 > - [ ] **3.5** `POST /api/projects/{id}/advisories/refresh` → returns advisory count
 > - [ ] **3.6** Unit tests — OSV JSON fixture → advisories parsed; range check true/false cases
 > - [ ] **Checkpoint** — refresh a real project → `advisory` rows land; a dep with a known CVE matches by range

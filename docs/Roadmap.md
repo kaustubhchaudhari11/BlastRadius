@@ -67,13 +67,16 @@ P5 is the **first convergence** — needs both advisories AND usage sites.
 
 ## Micro-steps checklist (Phase 3 — next)
 
+- [ ] 3.0 HTTP client bean (`RestClient`) + timeouts + OSV base URL 🔒
 - [ ] 3.1 `AdvisoryClient` → OSV.dev (`/v1/querybatch`) from distinct `(ecosystem, pkg, version)`
 - [ ] 3.2 Map OSV JSON → `Advisory` entity (dedupe on `external_id`)
 - [ ] 3.3 `AdvisoryService.refreshForProject(projectId)` upsert
-- [ ] 3.4 Version-range check (`current_version` ∈ OSV affected range; `"unspecified"` → flag)
+- [ ] 3.4 ⚡ Version-range comparator — tri-state `AFFECTED`/`NOT_AFFECTED`/`UNKNOWN` *(start in parallel — longest pole)*
 - [ ] 3.5 `POST /api/projects/{id}/advisories/refresh`
-- [ ] 3.6 Unit test: OSV fixture → advisories + range true/false
+- [ ] 3.6 Unit test: OSV fixture → advisories + range true/false (mock HTTP)
 - [ ] Checkpoint: refresh real project → `advisory` rows land, known CVE matches by range
 - [ ] Push branch → PR → merge
 
-> ✅ Phases 0–2 complete (incl. P2.5 version resolution). See [[PROGRESS]] for the live handoff and the Phase 2 → Phase 3 contract.
+> ✅ Phases 0–2 complete and **merged** (P2 via PR #3, incl. P2.5 version resolution).
+> 🗺️ **[[Task Dependency Map]]** — full blocking graph, cross-functional contracts, deferred debt.
+> 📋 [[PROGRESS]] — live handoff · [[Phase 3 — Advisories]] — detailed plan.
