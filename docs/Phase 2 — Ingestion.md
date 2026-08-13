@@ -22,16 +22,16 @@ flowchart LR
     F -.read by.-> I[Phase 4 usage]
 ```
 
-| Step | Component | What it does |
-|------|-----------|--------------|
-| 2.1 | `EcosystemAdapter` + `ParsedDependency` | The extensibility **seam**; DTO keeps parsing free of JPA |
-| 2.2 | `MavenAdapter` | `detect()` finds `pom.xml`; `parseDependencies()` reads `<dependencies>` |
-| 2.3 | `AdapterRegistry` | Auto-collects adapters, selects by `detect()` |
-| 2.4 | `IngestionService` | Maps DTO → entity, persists `@Transactional` |
-| 2.5 | `POST /api/projects` + DTOs | REST entry: create project, ingest, return deps |
-| 2.6 | Unit test + fixture pom | Proves parsing correctness |
-| **P2.5** | **`MavenVersionResolver`** | Resolves `${props}`, on-disk parent POMs, `<dependencyManagement>` → concrete versions |
-| +IT | `ProjectControllerIntegrationTest` | Proves POST→DB seam **in CI** (H2) |
+| Step     | Component                               | What it does                                                                           |
+| -------- | --------------------------------------- | -------------------------------------------------------------------------------------- |
+| 2.1      | `EcosystemAdapter` + `ParsedDependency` | The extensibility **seam**; DTO keeps parsing free of JPA                              |
+| 2.2      | `MavenAdapter`                          | `detect()` finds `pom.xml`; `parseDependencies()` reads `<dependencies>`               |
+| 2.3      | `AdapterRegistry`                       | Auto-collects adapters, selects by `detect()`                                          |
+| 2.4      | `IngestionService`                      | Maps DTO → entity, persists `@Transactional`                                           |
+| 2.5      | `POST /api/projects` + DTOs             | REST entry: create project, ingest, return deps                                        |
+| 2.6      | Unit test + fixture pom                 | Proves parsing correctness                                                             |
+| **P2.5** | **`MavenVersionResolver`**              | Resolves `${props}`, on-disk parent POMs, `<dependencyManagement>` → concrete versions |
+| +IT      | `ProjectControllerIntegrationTest`      | Proves POST→DB seam **in CI** (H2)                                                     |
 
 > [!tip] Why the seam matters
 > Adding a new language (Python, npm) later = *write one adapter + register it*. The registry, service, controller, API, and UI never change. That's the "~a day of work per language" claim.

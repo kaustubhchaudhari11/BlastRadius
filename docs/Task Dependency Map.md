@@ -9,12 +9,12 @@
 
 ## Legend
 
-| Symbol | Meaning |
-|---|---|
-| 🔒 **Blocking** | Nothing downstream can start until this is done |
-| ⚡ **Parallel** | Can be built at the same time as its siblings |
+| Symbol                  | Meaning                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------------- |
+| 🔒 **Blocking**         | Nothing downstream can start until this is done                                       |
+| ⚡ **Parallel**          | Can be built at the same time as its siblings                                         |
 | 🔗 **Cross-functional** | Built here, but a *later* phase depends on it — get the contract right the first time |
-| 💤 **Deferred debt** | Known gap, safe to postpone, has a named deadline phase |
+| 💤 **Deferred debt**    | Known gap, safe to postpone, has a named deadline phase                               |
 
 ---
 
