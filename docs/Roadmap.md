@@ -42,8 +42,8 @@ P5 is the **first convergence** — needs both advisories AND usage sites.
 | **0** | Spring Boot skeleton + `/health` | 🔧 | JDK 21 | Everything | ✅ |
 | **1** | PostgreSQL + JPA + Flyway + entities | 🔧 | P0 | All ingestion/analysis | ✅ |
 | **2** | `EcosystemAdapter` + Maven `parseDependencies` + **P2.5 version resolution** | 🧠🔧 | P1 | P3, P4, P8 | ✅ |
-| **3** | OSV advisory ingestion (Maven + PyPI) | 🧠🔧 | P2 | P5 | ◀ next |
-| **4** | Maven `scanUsage` (import/symbol) | 🧠 | P2 | P5 | — |
+| **3** | OSV advisory ingestion + version-range filter | 🧠🔧 | P2 | P5 | 🔄 code done |
+| **4** | Maven `scanUsage` (import/symbol) | 🧠 | P2 | P5 | ◀ next |
 | **5** | Triage → Migration → Eval agents | 🧠 | P3 + P4 | P6 | — |
 | **6** | REST API + React dashboard | 🔧 | P5 | P7 | — |
 | **7** | Telemetry + Railway/Vercel deploy | 🔧 | P6 | P8 | **v0.1.0** |
@@ -65,15 +65,15 @@ P5 is the **first convergence** — needs both advisories AND usage sites.
 
 ---
 
-## Micro-steps checklist (Phase 3 — next)
+## Micro-steps checklist (Phase 3 — code complete 🔄)
 
-- [ ] 3.0 HTTP client bean (`RestClient`) + timeouts + OSV base URL 🔒
-- [ ] 3.1 `AdvisoryClient` → OSV.dev (`/v1/querybatch`) from distinct `(ecosystem, pkg, version)`
-- [ ] 3.2 Map OSV JSON → `Advisory` entity (dedupe on `external_id`)
-- [ ] 3.3 `AdvisoryService.refreshForProject(projectId)` upsert
-- [ ] 3.4 ⚡ Version-range comparator — tri-state `AFFECTED`/`NOT_AFFECTED`/`UNKNOWN` *(start in parallel — longest pole)*
-- [ ] 3.5 `POST /api/projects/{id}/advisories/refresh`
-- [ ] 3.6 Unit test: OSV fixture → advisories + range true/false (mock HTTP)
+- [x] 3.0 `OsvProperties` + `OsvClientConfig` — `RestClient` with explicit timeouts
+- [x] 3.1 `AdvisoryClient` → OSV `/v1/query` + ecosystem name mapping
+- [x] 3.2 `AdvisoryMapper` — OSV JSON → `Advisory` entity
+- [x] 3.3 `AdvisoryService.refreshForProject()` — dedupe on `external_id`, error isolation
+- [x] 3.4 `VersionRangeMatcher` — tri-state via Maven `ComparableVersion`
+- [x] 3.5 `POST /api/projects/{id}/advisories/refresh`
+- [x] 3.6 Tests — 27 new, **41/41 green**
 - [ ] Checkpoint: refresh real project → `advisory` rows land, known CVE matches by range
 - [ ] Push branch → PR → merge
 

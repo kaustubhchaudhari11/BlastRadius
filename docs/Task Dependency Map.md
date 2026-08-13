@@ -3,7 +3,7 @@
 > [!abstract] What this note is
 > Every remaining task, **who blocks whom**, and which items are *cross-functional* (built in one phase but consumed by a later one). Use this to pick what to work on next without hitting a wall.
 
-**Status as of 2026-08-11:** Phases 0–2 ✅ merged (`main` @ PR #3). Phase 3 not started.
+**Status as of 2026-08-12:** Phases 0–2 ✅ merged. **Phase 3 code complete (3.0–3.6), 41/41 tests green**, awaiting manual checkpoint + PR. Next up: **Phase 4** (usage scan) — fully unblocked.
 
 ---
 
@@ -115,11 +115,22 @@ These are built in one phase but *consumed* later. Mistakes here cause rework:
 ## What to do next (ordered)
 
 > [!todo] Immediate
-> - [ ] Land the stranded doc commits + this map on `main` (small PR)
-> - [ ] Cut `feat/phase3-advisories` from updated `main`
-> - [ ] **3.0** HTTP client bean
-> - [ ] **3.1** `AdvisoryClient` (OSV querybatch)
-> - [ ] **3.4** Start the range comparator in parallel — it's the long pole
+> - [x] ~~Land docs on `main`~~ ✅
+> - [x] ~~Cut `feat/phase3-advisories`~~ ✅
+> - [x] ~~**3.0–3.6** Phase 3 implementation + tests~~ ✅ 41/41 green
+> - [ ] **Phase 3 checkpoint** — run app, POST a project, POST advisories/refresh, confirm `advisory` rows (needs Postgres + network)
+> - [ ] PR `feat/phase3-advisories` → `main`
+> - [ ] Then **Phase 4** — `MavenAdapter.scanUsage()`; the interface slot already exists
+
+## Phase 4 task breakdown (next after P3)
+
+| # | Task | Depends on | Notes |
+|---|------|-----------|-------|
+| 4.1 | Map a `Dependency` → expected import prefixes (`com.google.guava` → `com.google.common.*`) | P2 ✅ | Groupid ≠ package name; needs a heuristic + overrides |
+| 4.2 | Scan `src/**/*.java` for matching imports | 4.1 | Regex on import lines is enough for MVP; AST is Phase 9 |
+| 4.3 | Persist `UsageSite` rows (file, line, symbol, snippet) | 4.2 | Table already exists from P1 |
+| 4.4 | Implement `MavenAdapter.scanUsage()` — replaces the stub | 4.3 | Interface signature already fixed |
+| 4.5 | `POST /api/projects/{id}/usage/scan` + tests | 4.4 | Mirror the advisory refresh shape |
 
 ---
 

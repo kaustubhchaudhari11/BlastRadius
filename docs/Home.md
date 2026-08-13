@@ -23,8 +23,8 @@
 | 0 — Skeleton        | ✅ Done         | `main`                        |
 | 1 — Persistence     | ✅ Done         | merged (PR #2)                |
 | 2 — Maven ingestion | ✅ Done         | merged (PR #3)                |
-| 3 — Advisories      | 🔜 Next         | `feat/phase3-advisories`      |
-| 4 — Usage detection | ⏳ Unblocked    | `feat/phase4-usage-maven`     |
+| 3 — Advisories      | 🔄 Code done    | `feat/phase3-advisories`      |
+| 4 — Usage detection | 🔜 Next         | `feat/phase4-usage-maven`     |
 | 5 — Agents          | ⏳              | `feat/phase5-agents`          |
 | 6 — Dashboard       | ⏳              | `feat/phase6-frontend`        |
 | 7 — Deploy          | ⏳              | `feat/phase7-deploy`          |

@@ -4,12 +4,13 @@
 
 ## Today
 
-- [x] ~~Merge Phase 2 PR → `main`~~ ✅ **done (PR #3)**
-- [ ] PR the 2 stranded doc commits + [[Task Dependency Map]] → `main`
-- [ ] `git checkout main && git pull` → cut `feat/phase3-advisories`
-- [ ] Kick off [[Phase 3 — Advisories]]: **3.0** HTTP client → **3.1** `AdvisoryClient`
-- [ ] Start **3.4** range comparator in parallel (longest pole)
+- [x] ~~Merge Phase 2 → `main`~~ ✅ (PR #3)
+- [x] ~~Sync all branches; `main` fully up to date~~ ✅
+- [x] ~~Phase 3 code: 3.0–3.6, 41/41 tests green~~ ✅
+- [ ] **Phase 3 checkpoint** — run app → POST project → POST advisories/refresh → check `advisory` rows
+- [ ] PR `feat/phase3-advisories` → `main`
 - [ ] Decide: keep or delete `copilot/dependency-check-solution` branch
+- [ ] Then Phase 4 — `MavenAdapter.scanUsage()`
 
 ## Project status
 
@@ -18,8 +19,8 @@
 | [[Roadmap#Phase 0 — Skeleton\|0 Skeleton]] | ✅ Done | `/health` works |
 | [[Phase 1 — Persistence\|1 Persistence]] | ✅ Done | merged (PR #2) |
 | [[Phase 2 — Ingestion\|2 Maven ingestion]] | ✅ Done | **merged PR #3**; 14/14 tests |
-| [[Phase 3 — Advisories\|3 Advisories]] | 🔜 Next | OSV ingestion + range filter |
-| 4 Usage scan | ⏳ Ready | Unblocked — parallel with P3; good fallback task |
+| [[Phase 3 — Advisories\|3 Advisories]] | 🔄 Code done | 41/41 tests; needs manual checkpoint + PR |
+| 4 Usage scan | 🔜 Next | `scanUsage()` slot already on the interface |
 | 5 Agents | ⏳ | After P3 + P4 |
 | 6 Dashboard | ⏳ | After P5 |
 | 7 Deploy | ⏳ | After P6 |
@@ -29,13 +30,13 @@
 
 See [[Phase 3 — Advisories]] for the full plan and [[Task Dependency Map]] for what blocks what.
 
-- [ ] 3.0 HTTP client bean + timeouts 🔒
-- [ ] 3.1 `AdvisoryClient` → OSV `/v1/querybatch`
-- [ ] 3.2 Map OSV JSON → `Advisory` (dedupe on `external_id`)
-- [ ] 3.3 `AdvisoryService.refreshForProject()` upsert
-- [ ] 3.4 Version-range check (`"unspecified"` → flag)
-- [ ] 3.5 `POST /api/projects/{id}/advisories/refresh`
-- [ ] 3.6 Unit tests (OSV fixture + range cases)
+- [x] 3.0 `OsvClientConfig` — `RestClient` + timeouts
+- [x] 3.1 `AdvisoryClient` → OSV `/v1/query`
+- [x] 3.2 `AdvisoryMapper` — OSV JSON → `Advisory`
+- [x] 3.3 `AdvisoryService.refreshForProject()` upsert + error isolation
+- [x] 3.4 `VersionRangeMatcher` — tri-state, Maven version ordering
+- [x] 3.5 `POST /api/projects/{id}/advisories/refresh`
+- [x] 3.6 Unit tests — 27 new, 41/41 total
 - [ ] Checkpoint: real project → advisories land, known CVE matches
 
 ## Quick links
@@ -54,3 +55,4 @@ See [[Phase 3 — Advisories]] for the full plan and [[Task Dependency Map]] for
 - 2026-07-02 — Resumed after a week; Phase 2 confirmed ready to merge; Obsidian updated for P2 done + P3 plan
 - 2026-08-09 — Repo audit: P2 still unmerged, suite re-verified 14/14 green
 - 2026-08-11 — **Phase 2 merged (PR #3)**; added [[Task Dependency Map]]; Phase 3 broken down with blocking order
+- 2026-08-12 — All branches synced to `main`; **Phase 3 implemented (3.0–3.6)**, suite 14 → 41 tests green

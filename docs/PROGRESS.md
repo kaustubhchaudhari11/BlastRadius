@@ -1,9 +1,6 @@
 # Blast Radius — Session Handoff (read this first in new chats)
 
-> **Last updated:** 2026-08-11 · **Phase:** 2 ✅ **MERGED to `main` (PR #3)** · **Next:** Phase 3 — advisory ingestion · Tests: 14/14 green
-
-> [!note] Loose end from the PR #3 merge
-> PR #3 merged at commit `e82b06b`, which left **two later doc commits stranded** on `feat/phase2-maven-ingestion`: `ff87570` (adds the [[Phase 2 — Ingestion]] and [[Phase 3 — Advisories]] pages) and `3097fb5` (Aug 9 handoff refresh). Those Obsidian pages exist locally but are **not on `main` yet** — fold them into the next PR.
+> **Last updated:** 2026-08-12 · **Phase:** 3 🔄 **IN PROGRESS** (3.0–3.5 done) on `feat/phase3-advisories` · Phases 0–2 ✅ merged · Tests: **41/41 green**
 
 > [!tip] Start here for planning
 > **[[Task Dependency Map]]** — every remaining task, what blocks what, cross-functional contracts, and deferred debt with deadlines.
@@ -36,11 +33,25 @@ Packages: `com.blastradius.ingestion`, `com.blastradius.api`. pom parsing via `o
 **Why P2.5 matters:** P3 filters advisories by whether *your* current version is in the vulnerable range. Without a concrete version (`"unspecified"`), every advisory for a package matches → false-positive noise — the exact thing the product removes. `MavenVersionResolver` resolves `${properties}`, on-disk parent POMs, and `<dependencyManagement>`. **Known boundary:** versions that live only in a *remote* BOM (e.g. `spring-boot-starter-parent`) are not downloaded → still `"unspecified"`; P3 must treat `"unspecified"` as "version-unknown, surface for manual review" rather than auto-matching all ranges.
 
 ## YOU do now 🔴
-1. **Land the stranded docs** — open a PR from `feat/phase2-maven-ingestion` → `main` (2 doc commits + the new [[Task Dependency Map]]). No conflicts; `main` already contains their ancestor.
-2. `git checkout main; git pull origin main; git checkout -b feat/phase3-advisories`
-3. Delete stale merged branches: `git branch -d feat/phase1-persistence`
-4. **Decide** on `origin/copilot/dependency-check-solution` (auto-created; adds Dependabot + dependency-review Action, touches only `.github/` + README) → merge as its own small PR, or delete.
-5. Start Phase 3: **3.0** HTTP client bean → **3.1** `AdvisoryClient`, with **3.4** range comparator in parallel.
+1. **Run the Phase 3 checkpoint** (needs Postgres + network) — see "Phase 3 checkpoint" below.
+2. PR `feat/phase3-advisories` → `main` once the checkpoint passes.
+3. **Decide** on `origin/copilot/dependency-check-solution` (auto-created; adds Dependabot + dependency-review Action, touches only `.github/` + README) → merge as its own small PR, or delete.
+4. Optional cleanup: `git push origin --delete feat/phase1-persistence` (stale; recovery SHA `b6b6bea`).
+
+## Phase 3 checkpoint (manual — needs live OSV + Postgres)
+```powershell
+# 1. start the app
+$env:JAVA_HOME="C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"
+.\mvnw.cmd spring-boot:run
+
+# 2. register a project (any Maven repo path)
+curl -X POST http://localhost:8080/api/projects -H "Content-Type: application/json" `
+  -d '{\"name\":\"self\",\"sourcePath\":\"C:/Users/kaust/projects/blastradius\"}'
+
+# 3. refresh advisories for it (note the id returned above)
+curl -X POST http://localhost:8080/api/projects/1/advisories/refresh
+```
+Expect JSON with `advisoriesFound`, `affected`, `notAffected`, `unknown`. Then confirm `advisory` rows exist in Postgres.
 
 ### Housekeeping notes
 - `git status` shows many files "modified" — these are **line-ending (CRLF) artifacts only**; `git diff` is empty for all but one stray blank line in `UsageSiteRepository.java`. Harmless; discard with `git checkout -- <file>` if it bothers you.
@@ -79,20 +90,26 @@ P3 ∥ P4 after P2. Details: [[Roadmap]]
 | `EcosystemAdapter.ecosystemId()` = `"maven"` | Map to OSV ecosystem name `"Maven"` when querying |
 | `"unspecified"` sentinel | Branch: cannot range-filter → mark finding `version-unknown` (manual review), don't auto-match all |
 
-## Phase 3 — Advisory ingestion (next, branch `feat/phase3-advisories`)
+## Phase 3 — Advisory ingestion 🔄 (branch `feat/phase3-advisories`)
 Goal: pull advisories (OSV.dev) for the packages we already store → fill `advisory` table. Enables findings (P5).
 Full breakdown + blocking graph: **[[Task Dependency Map]]**
-| Step | Task | Blocked by |
-|------|------|-----------|
-| 3.0 | HTTP client bean (`RestClient`) + timeouts + OSV base URL config | — |
-| 3.1 | `AdvisoryClient` (OSV `POST /v1/querybatch`) — input: distinct `(ecosystem, pkg, version)` from `dependency` | 3.0 |
-| 3.2 | Map OSV response → `Advisory` entity (`external_id` UNIQUE = OSV id; `affected_versions` = ranges JSON; `severity`) | 3.1 |
-| 3.3 | `AdvisoryService.refreshForProject(projectId)` — upsert advisories (dedupe on `external_id`) | 3.2 |
-| 3.4 | ⚡🔗 Version-range comparator — tri-state `AFFECTED`/`NOT_AFFECTED`/`UNKNOWN` (`"unspecified"` → UNKNOWN) | parallel — start early |
-| 3.5 | `POST /api/projects/{id}/advisories/refresh` → returns advisory + match counts | 3.3, 3.4 |
-| 3.6 | Unit test: OSV JSON fixture → advisories parsed; range check true/false cases (mock HTTP) | 3.2, 3.4 |
-Checkpoint: refresh a real project → `advisory` rows land; a dep with a known CVE matches by range.
-**Longest pole:** 3.4 (Maven versions aren't semver). **Fallback task if stuck:** Phase 4 usage scan — independent of P3.
+| Step | Task | Status |
+|------|------|--------|
+| 3.0 | `OsvProperties` + `OsvClientConfig` — dedicated `RestClient`, explicit connect/read timeouts | ✅ |
+| 3.1 | `AdvisoryClient` → OSV `POST /v1/query`; ecosystem name mapping (`maven`→`Maven`) | ✅ |
+| 3.2 | `AdvisoryMapper` — OSV vuln → `Advisory`; raw ranges kept as JSON; CVSS severity preferred | ✅ |
+| 3.3 | `AdvisoryService.refreshForProject()` — dedupe on `external_id`, per-package error isolation | ✅ |
+| 3.4 | `VersionRangeMatcher` + `VersionMatch` — tri-state, Maven `ComparableVersion` ordering | ✅ |
+| 3.5 | `POST /api/projects/{id}/advisories/refresh` → `AdvisoryRefreshResult` | ✅ |
+| 3.6 | Tests — 27 new (15 range, 5 client, 7 service). **41/41 total green** | ✅ |
+| — | **Checkpoint** (manual, needs live OSV + Postgres) | ⏳ |
+
+### Design decisions worth remembering
+- **`/v1/query`, not `/v1/querybatch`.** querybatch returns only vulnerability *ids*, so it would still need a detail fetch per id. Since we need summary/severity/ranges to build an `Advisory`, one `/v1/query` per package is the same round-trip count with simpler code.
+- **Maven's own `ComparableVersion`** (from `maven-artifact`) does version ordering, not semver parsing — `2.0.0.RELEASE` and `1.0-RC1` must order the way Maven does.
+- **Tri-state, not boolean.** `UNKNOWN` is what keeps the tool honest; `"unspecified"` deps query OSV *without* a version so we still learn what advisories exist, then flag them for manual review.
+- **Raw OSV ranges stored as JSON** in `affected_versions` — OSV's schema is still evolving; keeping it verbatim avoids a lossy migration per field.
+- **Partial-failure tolerant** — one package failing at OSV is collected into `errors[]` instead of aborting the refresh.
 
 ## Key paths
 | What | Where |
@@ -110,4 +127,5 @@ Checkpoint: refresh a real project → `advisory` rows land; a dep with a known 
 - 2026-06-24: Phase 2 code complete (2.1–2.6). Added **P2.5 `MavenVersionResolver`** (resolves `${props}`, on-disk parent, `dependencyManagement`) + **POST→DB integration test** + blank-input guard. 14 tests green. Confirmed the "extra" 6th table is `flyway_schema_history` (expected, not a bug). Ready to merge → Phase 3.
 - 2026-07-02: Added Obsidian pages [[Phase 2 — Ingestion]] and [[Phase 3 — Advisories]]; refreshed [[Home]] + [[Dashboard]]. Pushed. Merge still pending.
 - 2026-08-09: Resumed after ~5 weeks. **Audited repo:** Phase 2 still unmerged (11 commits ahead of `main`); no Phase 3 code started; only `V1__init.sql` migration. **Re-ran suite → 14/14 green.** Phase 2 confirmed still merge-ready. Working-tree "modifications" are CRLF noise only.
+- 2026-08-12: **Phase 3 code complete (3.0–3.6)** on `feat/phase3-advisories` — `AdvisoryClient`, `AdvisoryMapper`, `AdvisoryService`, `VersionRangeMatcher`, refresh endpoint. Suite grew **14 → 41 tests**, all green. Also synced all branches: `main` now holds every doc + code commit; deleted merged `feat/phase2-maven-ingestion`; fixed the recurring CRLF "phantom modified files" via `git add --renormalize`.
 - 2026-08-11: **Phase 2 MERGED (PR #3)** 🎉 — `main` @ `7f74821`. Found 2 doc commits stranded off the merge (fold into next PR). Added **[[Task Dependency Map]]** with the full P3–P8 blocking graph, cross-functional contracts, and deferred debt deadlines. Added task **3.0** (HTTP client) as a newly-identified prerequisite; flagged **3.4** range comparator as the critical long pole and marked it parallel-startable.
