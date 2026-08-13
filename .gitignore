@@ -41,3 +41,5 @@ application-local.properties
 
 ### Obsidian (local vault settings) ###
 docs/.obsidian/
+# Auto-created daily notes (YYYY-MM-DD.md) — personal scratch, not project docs
+docs/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md
