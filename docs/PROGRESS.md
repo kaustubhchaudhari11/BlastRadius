@@ -1,6 +1,6 @@
 # Blast Radius — Session Handoff (read this first in new chats)
 
-> **Last updated:** 2026-08-14 · **Phase:** 3 🔄 **code + CI complete** on `feat/phase3-advisories` · Phases 0–2 ✅ merged · Tests: **55/55 green** · Remaining: live-OSV checkpoint re-run + PR
+> **Last updated:** 2026-08-14 · **Phase:** 3 ✅ **COMPLETE — checkpoint PASSED** on `feat/phase3-advisories` · Phases 0–2 ✅ merged · Tests: **55/55 green** · Remaining: push + PR only
 
 > [!tip] Start here for planning
 > **[[Task Dependency Map]]** — every remaining task, what blocks what, cross-functional contracts, and deferred debt with deadlines.
@@ -33,8 +33,7 @@ Packages: `com.blastradius.ingestion`, `com.blastradius.api`. pom parsing via `o
 **Why P2.5 matters:** P3 filters advisories by whether *your* current version is in the vulnerable range. Without a concrete version (`"unspecified"`), every advisory for a package matches → false-positive noise — the exact thing the product removes. `MavenVersionResolver` resolves `${properties}`, parent POMs (**on disk *and* remote**), `<dependencyManagement>`, and **imported BOMs** (`<scope>import</scope>`). Anything still unresolved stays `"unspecified"` and is surfaced as `needs_review` rather than auto-matched.
 
 ## YOU do now 🔴
-1. **Re-run the Phase 3 checkpoint** — see "Phase 3 checkpoint" below. The first run (2026-08-14) exposed the remote-BOM gap, which is now fixed; the re-run should show non-zero `affected`/`notAffected` instead of all-`unknown`.
-2. PR `feat/phase3-advisories` → `main` once the checkpoint passes.
+1. **`git push`** then PR `feat/phase3-advisories` → `main`. Phase 3 is done: checkpoint passed on live OSV (see below).
 3. **Decide** on `origin/copilot/dependency-check-solution` (auto-created; adds Dependabot + dependency-review Action, touches only `.github/` + README) → merge as its own small PR, or delete.
 4. Optional cleanup: `git push origin --delete feat/phase1-persistence` (stale; recovery SHA `b6b6bea`).
 
@@ -55,7 +54,7 @@ $p.dependencies | ForEach-Object { "$($_.artifactOrName) = $($_.currentVersion)"
 (Invoke-WebRequest "http://localhost:8081/api/projects/$($p.id)/advisories/refresh" `
         -Method POST -UseBasicParsing).Content
 ```
-**Pass criteria:** step 2 shows real versions (not a wall of `unspecified`), and step 3 returns non-zero `findingsCreated` with `affected` + `notAffected` > 0. Then confirm `advisory` and `finding` rows in Postgres.
+**Pass criteria:** step 2 shows real versions (not a wall of `unspecified`), and step 3 returns non-zero `findingsCreated` with a decided verdict rather than all-`unknown`. ✅ Passed 2026-08-14 — result recorded under "Phase 3".
 
 ### Housekeeping notes
 - `git status` shows many files "modified" — these are **line-ending (CRLF) artifacts only**; `git diff` is empty for them. Harmless; discard with `git checkout -- <file>` if it bothers you.
@@ -109,18 +108,37 @@ Full breakdown + blocking graph: **[[Task Dependency Map]]**
 | **3.7** | **Remote version resolution** — `PomFetcher` + `MavenCentralPomFetcher`; remote parents, imported BOMs, per-JVM cache | ✅ |
 | **3.8** | **Findings persistence** — verdict written to `finding` with `TriageStatus`; V2 unique `(dependency_id, advisory_id)` | ✅ |
 | +IT | `AdvisoryRefreshIntegrationTest` — POST project → refresh → DB rows, all 3 verdicts, findings, idempotency (OSV stubbed) | ✅ |
-| — | **Live-OSV checkpoint** re-run after 3.7/3.8 | ⏳ only remaining item |
-| — | PR `feat/phase3-advisories` → `main` | ⏳ |
+| — | **Live-OSV checkpoint** — PASSED 2026-08-14 (see below) | ✅ |
+| — | PR `feat/phase3-advisories` → `main` | ⏳ only remaining item |
 
 **Total: 55/55 green.**
 
-### The 2026-08-14 checkpoint finding (why 3.7 and 3.8 exist)
-The first live run passed half the checkpoint and failed the half that matters:
+### Checkpoint result — PASSED ✅ (2026-08-14, live OSV + PG18)
+Registering this project on the fixed code, then refreshing:
+```
+RESOLVED: 11/11 dependencies   unspecified=0        (before 3.7: 2/11, unspecified=9)
+{"dependenciesQueried":11,"advisoriesFound":4,"advisoriesCreated":0,
+ "findingsCreated":4,"affected":4,"notAffected":0,"unknown":0,"errors":[]}
+```
+**This is the product thesis working on real data.** The first run surfaced 17 advisories with no way to judge any of them; with concrete versions the same project yields **4 real, version-relevant findings** — the other 13 were advisories against versions we don't run. `advisoriesCreated: 0` with `findingsCreated: 4` also proves dedupe against real data: all 4 advisories were already stored from the earlier run, so only the findings were new.
+
+The 4 findings, confirmed directly against OSV:
+| Dependency | Advisory | Note |
+|---|---|---|
+| `org.postgresql:postgresql 42.7.5` | `GHSA-98qh-xjc8-98pq` | pgjdbc unbounded PBKDF2 iterations → CPU-exhaustion DoS |
+| `org.postgresql:postgresql 42.7.5` | `GHSA-hq9p-pm7w-8p54` | falls back to insecure auth despite `channelBinding=require` |
+| `org.postgresql:postgresql 42.7.5` | `GHSA-j92g-9f8w-j867` | silent channel-binding downgrade |
+| `org.springframework.boot:spring-boot-devtools 3.4.5` | `GHSA-56v8-86gj-66jp` | remote secret compared in non-constant time |
+
+Note the devtools one: dev-only and not shipped, so it is exactly the kind of finding **P4 usage evidence** and **P5 triage** should deprioritise. Good early signal that those phases have real work to do.
+
+### The finding that produced 3.7 and 3.8
+The *first* live run passed half the checkpoint and failed the half that matters:
 - ✅ 17 advisory rows landed from real OSV data, no errors.
 - ❌ **All 17 were `unknown`** — 9 of 11 dependencies resolved to `"unspecified"` because this project inherits versions from `spring-boot-starter-parent`, a *remote* parent. Range filtering had nothing to compare against, so the noise filter did nothing.
 - ❌ The verdict was **computed and discarded** — nothing wrote the dependency↔advisory link, so "which advisory affects what" was not queryable.
 
-This was the load-bearing shortcut flagged during the P2 review, confirmed in practice. 3.7 fixes the input data; 3.8 fixes the output. Verified against real coordinates: `spring-boot-starter-parent:3.4.5` carries **0** managed entries and defers to `spring-boot-dependencies:3.4.5`, which has **412** — with `postgresql` as `${postgresql.version}` → `42.7.5`, i.e. the parent chain *and* a property indirection both have to be walked.
+This was the load-bearing shortcut flagged during the P2 review, confirmed in practice. 3.7 fixed the input data; 3.8 fixed the output — both now verified by the passing run above. Verified against real coordinates: `spring-boot-starter-parent:3.4.5` carries **0** managed entries and defers to `spring-boot-dependencies:3.4.5`, which has **412** — with `postgresql` as `${postgresql.version}` → `42.7.5`, i.e. the parent chain *and* a property indirection both have to be walked.
 
 ### Design decisions worth remembering
 - **Remote POMs go through a `PomFetcher` seam.** Keeps resolution unit-testable offline and lets an air-gapped deploy swap in a mirror. Negative results are cached too, so an offline run doesn't retry every lookup.
@@ -150,5 +168,5 @@ This was the load-bearing shortcut flagged during the P2 review, confirmed in pr
 - 2026-07-02: Added Obsidian pages [[Phase 2 — Ingestion]] and [[Phase 3 — Advisories]]; refreshed [[Home]] + [[Dashboard]]. Pushed. Merge still pending.
 - 2026-08-09: Resumed after ~5 weeks. **Audited repo:** Phase 2 still unmerged (11 commits ahead of `main`); no Phase 3 code started; only `V1__init.sql` migration. **Re-ran suite → 14/14 green.** Phase 2 confirmed still merge-ready. Working-tree "modifications" are CRLF noise only.
 - 2026-08-12: **Phase 3 code complete (3.0–3.6)** on `feat/phase3-advisories` — `AdvisoryClient`, `AdvisoryMapper`, `AdvisoryService`, `VersionRangeMatcher`, refresh endpoint. Suite grew **14 → 41 tests**, all green. Also synced all branches: `main` now holds every doc + code commit; deleted merged `feat/phase2-maven-ingestion`; fixed the recurring CRLF "phantom modified files" via `git add --renormalize`.
-- 2026-08-14: **Ran the live checkpoint — it failed the important half, and that was valuable.** Advisory rows landed from real OSV, but all 17 came back `unknown` because remote-BOM versions were unresolved, and verdicts were never persisted. Added **3.7 remote version resolution** (`PomFetcher` + `MavenCentralPomFetcher`: remote parents, imported BOMs, caching, graceful offline) and **3.8 findings persistence** (`TriageStatus`, V2 unique constraint, dismissal-safe upsert). Also fixed a real precedence bug where a parent's `dependencyManagement` beat the child's. Suite **44 → 55 green**. Checkpoint needs a re-run.
+- 2026-08-14: **Ran the live checkpoint — it failed the important half, and that was valuable.** Advisory rows landed from real OSV, but all 17 came back `unknown` because remote-BOM versions were unresolved, and verdicts were never persisted. Added **3.7 remote version resolution** (`PomFetcher` + `MavenCentralPomFetcher`: remote parents, imported BOMs, caching, graceful offline) and **3.8 findings persistence** (`TriageStatus`, V2 unique constraint, dismissal-safe upsert). Also fixed a real precedence bug where a parent's `dependencyManagement` beat the child's. Suite **44 → 55 green**. **Re-ran the checkpoint → PASSED:** 11/11 versions resolved (was 2/11), and the same project went from *17 advisories, all unknown* to **4 real findings, 4 affected, 0 unknown** — the noise filter doing its job on live data. Phase 3 complete; only push + PR remain.
 - 2026-08-11: **Phase 2 MERGED (PR #3)** 🎉 — `main` @ `7f74821`. Found 2 doc commits stranded off the merge (fold into next PR). Added **[[Task Dependency Map]]** with the full P3–P8 blocking graph, cross-functional contracts, and deferred debt deadlines. Added task **3.0** (HTTP client) as a newly-identified prerequisite; flagged **3.4** range comparator as the critical long pole and marked it parallel-startable.
