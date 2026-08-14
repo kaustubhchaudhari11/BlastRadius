@@ -5,11 +5,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class MavenAdapterTest {
 
-	private final MavenAdapter adapter = new MavenAdapter();
+	private final MavenAdapter adapter = new MavenAdapter((g, a, v) -> Optional.empty());
 
 	private Path fixture() {
 		return Path.of("src/test/resources/fixtures/maven-sample");

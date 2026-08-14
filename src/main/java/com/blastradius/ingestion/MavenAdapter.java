@@ -24,9 +24,9 @@ import org.springframework.stereotype.Component;
  * POMs). A concrete version matters because P3 filters advisories by whether the current
  * version is in the vulnerable range.
  *
- * <p>Boundary: versions that live only in a <strong>remote</strong> BOM (e.g.
- * {@code spring-boot-starter-parent}) are not downloaded and are recorded as
- * {@code "unspecified"} for the consumer to handle explicitly.
+ * <p>Remote parents and imported BOMs (e.g. {@code spring-boot-dependencies}) are fetched via
+ * {@link PomFetcher}. Anything still unresolved after that is recorded as
+ * {@code "unspecified"} so the consumer can surface it for manual review.
  */
 @Component
 public class MavenAdapter implements EcosystemAdapter {
@@ -34,6 +34,12 @@ public class MavenAdapter implements EcosystemAdapter {
 	private static final Logger log = LoggerFactory.getLogger(MavenAdapter.class);
 	private static final String ECOSYSTEM = "maven";
 	private static final String UNSPECIFIED_VERSION = "unspecified";
+
+	private final PomFetcher pomFetcher;
+
+	public MavenAdapter(PomFetcher pomFetcher) {
+		this.pomFetcher = pomFetcher;
+	}
 
 	@Override
 	public String ecosystemId() {
@@ -60,7 +66,7 @@ public class MavenAdapter implements EcosystemAdapter {
 			throw new IngestionException("Failed to parse pom.xml at " + pom, e);
 		}
 
-		MavenVersionResolver resolver = new MavenVersionResolver(model, repoRoot);
+		MavenVersionResolver resolver = new MavenVersionResolver(model, repoRoot, pomFetcher);
 		List<ParsedDependency> result = new ArrayList<>();
 		for (org.apache.maven.model.Dependency d : model.getDependencies()) {
 			String version = resolver.resolve(d.getVersion(), d.getGroupId(), d.getArtifactId())
