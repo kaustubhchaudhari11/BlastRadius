@@ -18,13 +18,18 @@ import com.blastradius.model.Advisory;
 import com.blastradius.model.AdvisoryRepository;
 import com.blastradius.model.Dependency;
 import com.blastradius.model.DependencyRepository;
+import com.blastradius.model.Finding;
+import com.blastradius.model.FindingRepository;
+import com.blastradius.model.Project;
 import com.blastradius.model.ProjectRepository;
+import com.blastradius.model.TriageStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -41,6 +46,8 @@ class AdvisoryServiceTest {
 	private DependencyRepository dependencyRepository;
 	@Mock
 	private ProjectRepository projectRepository;
+	@Mock
+	private FindingRepository findingRepository;
 
 	private AdvisoryService service;
 
@@ -52,7 +59,16 @@ class AdvisoryServiceTest {
 				new VersionRangeMatcher(),
 				advisoryRepository,
 				dependencyRepository,
-				projectRepository);
+				projectRepository,
+				findingRepository);
+	}
+
+	/** Repositories return the entity they persisted, mirroring Spring Data. */
+	private void stubPersistence() {
+		when(projectRepository.getReferenceById(PROJECT_ID)).thenReturn(new Project());
+		when(advisoryRepository.save(any(Advisory.class))).thenAnswer(i -> i.getArgument(0));
+		when(findingRepository.findByDependencyIdAndAdvisoryId(any(), any()))
+				.thenReturn(Optional.empty());
 	}
 
 	private static Dependency dependency(String group, String artifact, String version) {
@@ -76,6 +92,12 @@ class AdvisoryServiceTest {
 				List.of());
 	}
 
+	private Finding capturedFinding() {
+		ArgumentCaptor<Finding> captor = ArgumentCaptor.forClass(Finding.class);
+		verify(findingRepository).save(captor.capture());
+		return captor.getValue();
+	}
+
 	@Test
 	void countsAffectedWhenCurrentVersionIsInVulnerableRange() {
 		when(projectRepository.existsById(PROJECT_ID)).thenReturn(true);
@@ -84,12 +106,87 @@ class AdvisoryServiceTest {
 		when(advisoryClient.findVulnerabilities("maven", "com.google.guava:guava", "31.0.0"))
 				.thenReturn(List.of(vuln("GHSA-1", "0", "32.0.0")));
 		when(advisoryRepository.findByExternalId("GHSA-1")).thenReturn(Optional.empty());
+		stubPersistence();
 
 		AdvisoryRefreshResult result = service.refreshForProject(PROJECT_ID);
 
 		assertThat(result.affected()).isEqualTo(1);
 		assertThat(result.notAffected()).isZero();
 		assertThat(result.advisoriesCreated()).isEqualTo(1);
+	}
+
+	/** The verdict has to be persisted, not just counted — P4 and P5 read it back. */
+	@Test
+	void persistsFindingWithAffectedTriageStatus() {
+		when(projectRepository.existsById(PROJECT_ID)).thenReturn(true);
+		when(dependencyRepository.findByProjectId(PROJECT_ID))
+				.thenReturn(List.of(dependency("com.google.guava", "guava", "31.0.0")));
+		when(advisoryClient.findVulnerabilities("maven", "com.google.guava:guava", "31.0.0"))
+				.thenReturn(List.of(vuln("GHSA-1", "0", "32.0.0")));
+		when(advisoryRepository.findByExternalId("GHSA-1")).thenReturn(Optional.empty());
+		stubPersistence();
+
+		AdvisoryRefreshResult result = service.refreshForProject(PROJECT_ID);
+
+		assertThat(result.findingsCreated()).isEqualTo(1);
+		assertThat(capturedFinding().getTriageStatus()).isEqualTo(TriageStatus.AFFECTED.code());
+		assertThat(capturedFinding().getCreatedAt()).isNotNull();
+	}
+
+	@Test
+	void persistsUnresolvedVersionAsNeedsReview() {
+		when(projectRepository.existsById(PROJECT_ID)).thenReturn(true);
+		when(dependencyRepository.findByProjectId(PROJECT_ID))
+				.thenReturn(List.of(dependency("com.google.guava", "guava", "unspecified")));
+		when(advisoryClient.findVulnerabilities("maven", "com.google.guava:guava", null))
+				.thenReturn(List.of(vuln("GHSA-1", "0", "32.0.0")));
+		when(advisoryRepository.findByExternalId("GHSA-1")).thenReturn(Optional.empty());
+		stubPersistence();
+
+		service.refreshForProject(PROJECT_ID);
+
+		assertThat(capturedFinding().getTriageStatus()).isEqualTo(TriageStatus.NEEDS_REVIEW.code());
+	}
+
+	@Test
+	void updatesExistingFindingInsteadOfCreatingDuplicate() {
+		when(projectRepository.existsById(PROJECT_ID)).thenReturn(true);
+		when(dependencyRepository.findByProjectId(PROJECT_ID))
+				.thenReturn(List.of(dependency("com.google.guava", "guava", "31.0.0")));
+		when(advisoryClient.findVulnerabilities("maven", "com.google.guava:guava", "31.0.0"))
+				.thenReturn(List.of(vuln("GHSA-1", "0", "32.0.0")));
+		when(advisoryRepository.findByExternalId("GHSA-1")).thenReturn(Optional.empty());
+		when(projectRepository.getReferenceById(PROJECT_ID)).thenReturn(new Project());
+		when(advisoryRepository.save(any(Advisory.class))).thenAnswer(i -> i.getArgument(0));
+		Finding stale = Finding.builder().triageStatus(TriageStatus.NOT_AFFECTED.code()).build();
+		when(findingRepository.findByDependencyIdAndAdvisoryId(any(), any()))
+				.thenReturn(Optional.of(stale));
+
+		AdvisoryRefreshResult result = service.refreshForProject(PROJECT_ID);
+
+		assertThat(result.findingsCreated()).isZero();
+		assertThat(stale.getTriageStatus()).isEqualTo(TriageStatus.AFFECTED.code());
+		verify(findingRepository).save(stale);
+	}
+
+	/** A human dismissal must survive an automated refresh. */
+	@Test
+	void doesNotOverwriteDismissedFinding() {
+		when(projectRepository.existsById(PROJECT_ID)).thenReturn(true);
+		when(dependencyRepository.findByProjectId(PROJECT_ID))
+				.thenReturn(List.of(dependency("com.google.guava", "guava", "31.0.0")));
+		when(advisoryClient.findVulnerabilities("maven", "com.google.guava:guava", "31.0.0"))
+				.thenReturn(List.of(vuln("GHSA-1", "0", "32.0.0")));
+		when(advisoryRepository.findByExternalId("GHSA-1")).thenReturn(Optional.empty());
+		when(projectRepository.getReferenceById(PROJECT_ID)).thenReturn(new Project());
+		when(advisoryRepository.save(any(Advisory.class))).thenAnswer(i -> i.getArgument(0));
+		Finding dismissed = Finding.builder().triageStatus(TriageStatus.DISMISSED.code()).build();
+		when(findingRepository.findByDependencyIdAndAdvisoryId(any(), any()))
+				.thenReturn(Optional.of(dismissed));
+
+		service.refreshForProject(PROJECT_ID);
+
+		assertThat(dismissed.getTriageStatus()).isEqualTo(TriageStatus.DISMISSED.code());
 	}
 
 	@Test
@@ -100,6 +197,7 @@ class AdvisoryServiceTest {
 		when(advisoryClient.findVulnerabilities("maven", "com.google.guava:guava", "33.0.0"))
 				.thenReturn(List.of(vuln("GHSA-1", "0", "32.0.0")));
 		when(advisoryRepository.findByExternalId("GHSA-1")).thenReturn(Optional.empty());
+		stubPersistence();
 
 		AdvisoryRefreshResult result = service.refreshForProject(PROJECT_ID);
 
@@ -116,6 +214,7 @@ class AdvisoryServiceTest {
 		when(advisoryClient.findVulnerabilities("maven", "com.google.guava:guava", null))
 				.thenReturn(List.of(vuln("GHSA-1", "0", "32.0.0")));
 		when(advisoryRepository.findByExternalId("GHSA-1")).thenReturn(Optional.empty());
+		stubPersistence();
 
 		AdvisoryRefreshResult result = service.refreshForProject(PROJECT_ID);
 
@@ -134,6 +233,7 @@ class AdvisoryServiceTest {
 				.thenReturn(List.of(vuln("GHSA-1", "0", "32.0.0")));
 		Advisory existing = Advisory.builder().externalId("GHSA-1").build();
 		when(advisoryRepository.findByExternalId("GHSA-1")).thenReturn(Optional.of(existing));
+		stubPersistence();
 
 		AdvisoryRefreshResult result = service.refreshForProject(PROJECT_ID);
 
@@ -150,12 +250,32 @@ class AdvisoryServiceTest {
 				dependency("com.google.guava", "guava", "31.0.0")));
 		when(advisoryClient.findVulnerabilities(anyString(), anyString(), any()))
 				.thenReturn(List.of());
+		when(projectRepository.getReferenceById(PROJECT_ID)).thenReturn(new Project());
 
 		AdvisoryRefreshResult result = service.refreshForProject(PROJECT_ID);
 
 		assertThat(result.dependenciesQueried()).isEqualTo(1);
 		verify(advisoryClient, times(1))
 				.findVulnerabilities(eq("maven"), eq("com.google.guava:guava"), any());
+	}
+
+	/** One package appearing twice still needs a finding each, so nothing is under-reported. */
+	@Test
+	void createsAFindingPerDependencyOccurrence() {
+		when(projectRepository.existsById(PROJECT_ID)).thenReturn(true);
+		when(dependencyRepository.findByProjectId(PROJECT_ID)).thenReturn(List.of(
+				dependency("com.google.guava", "guava", "31.0.0"),
+				dependency("com.google.guava", "guava", "31.0.0")));
+		when(advisoryClient.findVulnerabilities(anyString(), anyString(), any()))
+				.thenReturn(List.of(vuln("GHSA-1", "0", "32.0.0")));
+		when(advisoryRepository.findByExternalId("GHSA-1")).thenReturn(Optional.empty());
+		stubPersistence();
+
+		AdvisoryRefreshResult result = service.refreshForProject(PROJECT_ID);
+
+		assertThat(result.dependenciesQueried()).isEqualTo(1);
+		assertThat(result.findingsCreated()).isEqualTo(2);
+		verify(findingRepository, times(2)).save(any(Finding.class));
 	}
 
 	/** One bad package must not abort the whole refresh. */
@@ -170,6 +290,7 @@ class AdvisoryServiceTest {
 		when(advisoryClient.findVulnerabilities("maven", "com.google.guava:guava", "31.0.0"))
 				.thenReturn(List.of(vuln("GHSA-1", "0", "32.0.0")));
 		when(advisoryRepository.findByExternalId("GHSA-1")).thenReturn(Optional.empty());
+		stubPersistence();
 
 		AdvisoryRefreshResult result = service.refreshForProject(PROJECT_ID);
 
@@ -187,5 +308,6 @@ class AdvisoryServiceTest {
 
 		assertThat(result.dependenciesQueried()).isZero();
 		verify(advisoryClient, never()).findVulnerabilities(anyString(), anyString(), any());
+		verify(findingRepository, never()).save(any(Finding.class));
 	}
 }

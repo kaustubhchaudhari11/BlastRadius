@@ -5,7 +5,12 @@ import com.blastradius.model.Advisory;
 import com.blastradius.model.AdvisoryRepository;
 import com.blastradius.model.Dependency;
 import com.blastradius.model.DependencyRepository;
+import com.blastradius.model.Finding;
+import com.blastradius.model.FindingRepository;
+import com.blastradius.model.Project;
 import com.blastradius.model.ProjectRepository;
+import com.blastradius.model.TriageStatus;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,11 +26,15 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Two properties matter here:
  * <ul>
- *   <li><strong>Idempotent</strong> — advisories are deduped on {@code external_id}, so
- *       repeated refreshes update rather than duplicate.</li>
+ *   <li><strong>Idempotent</strong> — advisories dedupe on {@code external_id} and findings on
+ *       {@code (dependency_id, advisory_id)}, so repeated refreshes update rather than duplicate.</li>
  *   <li><strong>Partially fault-tolerant</strong> — one package failing at OSV must not lose
  *       the advisories already gathered, so failures are collected per package and reported.</li>
  * </ul>
+ *
+ * <p>The verdict is persisted as a {@link Finding}, not just counted: it is the row that Phase 4
+ * (usage evidence) and Phase 5 (triage) refine, and the only queryable record of <em>why</em> a
+ * dependency was flagged.
  */
 @Service
 public class AdvisoryService {
@@ -38,6 +47,7 @@ public class AdvisoryService {
 	private final AdvisoryRepository advisoryRepository;
 	private final DependencyRepository dependencyRepository;
 	private final ProjectRepository projectRepository;
+	private final FindingRepository findingRepository;
 
 	public AdvisoryService(
 			AdvisoryClient advisoryClient,
@@ -45,13 +55,15 @@ public class AdvisoryService {
 			VersionRangeMatcher versionRangeMatcher,
 			AdvisoryRepository advisoryRepository,
 			DependencyRepository dependencyRepository,
-			ProjectRepository projectRepository) {
+			ProjectRepository projectRepository,
+			FindingRepository findingRepository) {
 		this.advisoryClient = advisoryClient;
 		this.advisoryMapper = advisoryMapper;
 		this.versionRangeMatcher = versionRangeMatcher;
 		this.advisoryRepository = advisoryRepository;
 		this.dependencyRepository = dependencyRepository;
 		this.projectRepository = projectRepository;
+		this.findingRepository = findingRepository;
 	}
 
 	@Transactional
@@ -63,43 +75,42 @@ public class AdvisoryService {
 		List<Dependency> dependencies = dependencyRepository.findByProjectId(projectId);
 		if (dependencies.isEmpty()) {
 			log.info("Project {} has no dependencies to refresh", projectId);
-			return new AdvisoryRefreshResult(projectId, 0, 0, 0, 0, 0, 0, List.of());
+			return new AdvisoryRefreshResult(projectId, 0, 0, 0, 0, 0, 0, 0, List.of());
 		}
 
-		// Collapse to distinct packages: the same artifact can appear more than once, and
-		// each extra occurrence would be a wasted network call.
-		Map<PackageKey, String> distinct = new LinkedHashMap<>();
+		// Collapse to distinct packages so the same artifact is not fetched twice, but keep
+		// every occurrence: each one needs its own finding.
+		Map<PackageKey, List<Dependency>> byPackage = new LinkedHashMap<>();
 		for (Dependency dependency : dependencies) {
-			PackageKey key = PackageKey.of(dependency);
-			distinct.putIfAbsent(key, dependency.getCurrentVersion());
+			byPackage.computeIfAbsent(PackageKey.of(dependency), k -> new ArrayList<>()).add(dependency);
 		}
 
-		int found = 0;
-		int created = 0;
-		int affected = 0;
-		int notAffected = 0;
-		int unknown = 0;
+		Project project = projectRepository.getReferenceById(projectId);
+		Counters counters = new Counters();
 		List<String> errors = new ArrayList<>();
 
-		for (Map.Entry<PackageKey, String> entry : distinct.entrySet()) {
+		for (Map.Entry<PackageKey, List<Dependency>> entry : byPackage.entrySet()) {
 			PackageKey key = entry.getKey();
-			String currentVersion = entry.getValue();
+			List<Dependency> occurrences = entry.getValue();
 			try {
 				// Query without a version when it is unresolved, so we still learn what
 				// advisories exist for the package and can flag them for manual review.
-				String queryVersion = VersionRangeMatcher.isUnresolved(currentVersion) ? null : currentVersion;
+				String representativeVersion = occurrences.get(0).getCurrentVersion();
+				String queryVersion =
+						VersionRangeMatcher.isUnresolved(representativeVersion) ? null : representativeVersion;
 				List<Vulnerability> vulns =
 						advisoryClient.findVulnerabilities(key.ecosystem(), key.osvName(), queryVersion);
 
 				for (Vulnerability vuln : vulns) {
-					found++;
-					if (upsert(vuln, key)) {
-						created++;
-					}
-					switch (versionRangeMatcher.match(currentVersion, vuln.affectedOrEmpty())) {
-						case AFFECTED -> affected++;
-						case NOT_AFFECTED -> notAffected++;
-						case UNKNOWN -> unknown++;
+					counters.found++;
+					Advisory advisory = upsertAdvisory(vuln, key, counters);
+					for (Dependency dependency : occurrences) {
+						VersionMatch verdict =
+								versionRangeMatcher.match(dependency.getCurrentVersion(), vuln.affectedOrEmpty());
+						counters.record(verdict);
+						if (upsertFinding(project, dependency, advisory, verdict)) {
+							counters.findingsCreated++;
+						}
 					}
 				}
 			}
@@ -109,24 +120,87 @@ public class AdvisoryService {
 			}
 		}
 
-		log.info("Project {}: queried {} packages, {} advisories ({} new) — {} affected, {} not affected, {} unknown",
-				projectId, distinct.size(), found, created, affected, notAffected, unknown);
+		log.info("Project {}: queried {} packages, {} advisories ({} new), {} findings ({} new)"
+						+ " — {} affected, {} not affected, {} unknown",
+				projectId, byPackage.size(), counters.found, counters.created,
+				counters.affected + counters.notAffected + counters.unknown, counters.findingsCreated,
+				counters.affected, counters.notAffected, counters.unknown);
+
 		return new AdvisoryRefreshResult(
-				projectId, distinct.size(), found, created, affected, notAffected, unknown, errors);
+				projectId,
+				byPackage.size(),
+				counters.found,
+				counters.created,
+				counters.findingsCreated,
+				counters.affected,
+				counters.notAffected,
+				counters.unknown,
+				errors);
+	}
+
+	/** @return the persisted advisory, creating it when unseen. */
+	private Advisory upsertAdvisory(Vulnerability vuln, PackageKey key, Counters counters) {
+		Optional<Advisory> existing = advisoryRepository.findByExternalId(vuln.id());
+		if (existing.isPresent()) {
+			Advisory advisory = existing.get();
+			advisoryMapper.updateInPlace(advisory, vuln);
+			return advisoryRepository.save(advisory);
+		}
+		counters.created++;
+		return advisoryRepository.save(advisoryMapper.toAdvisory(vuln, key.ecosystem(), key.osvName()));
 	}
 
 	/**
-	 * @return {@code true} when a new advisory row was inserted
+	 * @return {@code true} when a new finding row was inserted
 	 */
-	private boolean upsert(Vulnerability vuln, PackageKey key) {
-		Optional<Advisory> existing = advisoryRepository.findByExternalId(vuln.id());
+	private boolean upsertFinding(
+			Project project, Dependency dependency, Advisory advisory, VersionMatch verdict) {
+		String status = toTriageStatus(verdict).code();
+		Optional<Finding> existing =
+				findingRepository.findByDependencyIdAndAdvisoryId(dependency.getId(), advisory.getId());
 		if (existing.isPresent()) {
-			advisoryMapper.updateInPlace(existing.get(), vuln);
-			advisoryRepository.save(existing.get());
+			Finding finding = existing.get();
+			// Never overwrite a human decision with an automated verdict.
+			if (!TriageStatus.DISMISSED.code().equals(finding.getTriageStatus())) {
+				finding.setTriageStatus(status);
+			}
+			findingRepository.save(finding);
 			return false;
 		}
-		advisoryRepository.save(advisoryMapper.toAdvisory(vuln, key.ecosystem(), key.osvName()));
+		findingRepository.save(Finding.builder()
+				.project(project)
+				.dependency(dependency)
+				.advisory(advisory)
+				.triageStatus(status)
+				.createdAt(Instant.now())
+				.build());
 		return true;
+	}
+
+	private static TriageStatus toTriageStatus(VersionMatch verdict) {
+		return switch (verdict) {
+			case AFFECTED -> TriageStatus.AFFECTED;
+			case NOT_AFFECTED -> TriageStatus.NOT_AFFECTED;
+			case UNKNOWN -> TriageStatus.NEEDS_REVIEW;
+		};
+	}
+
+	/** Mutable tally, kept local so the refresh loop stays readable. */
+	private static final class Counters {
+		private int found;
+		private int created;
+		private int findingsCreated;
+		private int affected;
+		private int notAffected;
+		private int unknown;
+
+		void record(VersionMatch verdict) {
+			switch (verdict) {
+				case AFFECTED -> affected++;
+				case NOT_AFFECTED -> notAffected++;
+				case UNKNOWN -> unknown++;
+			}
+		}
 	}
 
 	/** Identity of a package for OSV lookups. */

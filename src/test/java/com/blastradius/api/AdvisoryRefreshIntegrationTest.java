@@ -14,6 +14,9 @@ import com.blastradius.advisory.osv.OsvModels.Range;
 import com.blastradius.advisory.osv.OsvModels.Vulnerability;
 import com.blastradius.blastradius.BlastradiusApplication;
 import com.blastradius.model.AdvisoryRepository;
+import com.blastradius.model.Finding;
+import com.blastradius.model.FindingRepository;
+import com.blastradius.model.TriageStatus;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
@@ -42,6 +45,9 @@ class AdvisoryRefreshIntegrationTest {
 
 	@Autowired
 	private AdvisoryRepository advisoryRepository;
+
+	@Autowired
+	private FindingRepository findingRepository;
 
 	@Autowired
 	private ObjectMapper objectMapper;
@@ -101,6 +107,7 @@ class AdvisoryRefreshIntegrationTest {
 				.andExpect(jsonPath("$.dependenciesQueried").value(3))
 				.andExpect(jsonPath("$.advisoriesFound").value(3))
 				.andExpect(jsonPath("$.advisoriesCreated").value(3))
+				.andExpect(jsonPath("$.findingsCreated").value(3))
 				.andExpect(jsonPath("$.affected").value(1))
 				.andExpect(jsonPath("$.notAffected").value(1))
 				.andExpect(jsonPath("$.unknown").value(1))
@@ -110,6 +117,22 @@ class AdvisoryRefreshIntegrationTest {
 		assertThat(advisoryRepository.findByExternalId("OSV-AFFECTED")).isPresent();
 		assertThat(advisoryRepository.findByExternalId("OSV-AFFECTED").orElseThrow().getSource())
 				.isEqualTo("osv");
+
+		// The verdict must be queryable, not just present in the HTTP response.
+		List<Finding> findings = findingRepository.findByProjectId(projectId);
+		assertThat(findings).hasSize(3);
+		assertThat(findings).extracting(Finding::getTriageStatus)
+				.containsExactlyInAnyOrder(
+						TriageStatus.AFFECTED.code(),
+						TriageStatus.NOT_AFFECTED.code(),
+						TriageStatus.NEEDS_REVIEW.code());
+		// Compare identifiers: the association is lazy and there is no session out here.
+		Long affectedAdvisoryId =
+				advisoryRepository.findByExternalId("OSV-AFFECTED").orElseThrow().getId();
+		assertThat(findingRepository.findByProjectIdAndTriageStatus(
+						projectId, TriageStatus.AFFECTED.code()))
+				.singleElement()
+				.satisfies(f -> assertThat(f.getAdvisory().getId()).isEqualTo(affectedAdvisoryId));
 	}
 
 	/** A second refresh must update, not duplicate — proves idempotency against a real DB. */
@@ -124,12 +147,15 @@ class AdvisoryRefreshIntegrationTest {
 		mockMvc.perform(post("/api/projects/{id}/advisories/refresh", projectId))
 				.andExpect(status().isOk());
 		long afterFirst = advisoryRepository.count();
+		int findingsAfterFirst = findingRepository.findByProjectId(projectId).size();
 
 		mockMvc.perform(post("/api/projects/{id}/advisories/refresh", projectId))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.advisoriesCreated").value(0));
+				.andExpect(jsonPath("$.advisoriesCreated").value(0))
+				.andExpect(jsonPath("$.findingsCreated").value(0));
 
 		assertThat(advisoryRepository.count()).isEqualTo(afterFirst);
+		assertThat(findingRepository.findByProjectId(projectId)).hasSize(findingsAfterFirst);
 	}
 
 	@Test
