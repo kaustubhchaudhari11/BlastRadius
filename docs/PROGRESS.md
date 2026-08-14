@@ -1,6 +1,6 @@
 # Blast Radius — Session Handoff (read this first in new chats)
 
-> **Last updated:** 2026-08-12 · **Phase:** 3 🔄 **IN PROGRESS** (3.0–3.5 done) on `feat/phase3-advisories` · Phases 0–2 ✅ merged · Tests: **41/41 green**
+> **Last updated:** 2026-08-13 · **Phase:** 3 🔄 **code + CI complete** on `feat/phase3-advisories` · Phases 0–2 ✅ merged · Tests: **44/44 green** · Remaining: live-OSV checkpoint + PR
 
 > [!tip] Start here for planning
 > **[[Task Dependency Map]]** — every remaining task, what blocks what, cross-functional contracts, and deferred debt with deadlines.
@@ -101,8 +101,10 @@ Full breakdown + blocking graph: **[[Task Dependency Map]]**
 | 3.3 | `AdvisoryService.refreshForProject()` — dedupe on `external_id`, per-package error isolation | ✅ |
 | 3.4 | `VersionRangeMatcher` + `VersionMatch` — tri-state, Maven `ComparableVersion` ordering | ✅ |
 | 3.5 | `POST /api/projects/{id}/advisories/refresh` → `AdvisoryRefreshResult` | ✅ |
-| 3.6 | Tests — 27 new (15 range, 5 client, 7 service). **41/41 total green** | ✅ |
-| — | **Checkpoint** (manual, needs live OSV + Postgres) | ⏳ |
+| 3.6 | Tests — 30 new (15 range, 5 client, 7 service, 3 integration). **44/44 total green** | ✅ |
+| +IT | `AdvisoryRefreshIntegrationTest` — POST project → refresh → DB rows, all 3 verdicts, idempotency (OSV stubbed) | ✅ |
+| — | **Live-OSV checkpoint** (needs Postgres + network) | ⏳ only remaining item |
+| — | PR `feat/phase3-advisories` → `main` | ⏳ |
 
 ### Design decisions worth remembering
 - **`/v1/query`, not `/v1/querybatch`.** querybatch returns only vulnerability *ids*, so it would still need a detail fetch per id. Since we need summary/severity/ranges to build an `Advisory`, one `/v1/query` per package is the same round-trip count with simpler code.
